@@ -1,115 +1,291 @@
-<!DOCTYPE HTML>
+<DOCTYPE html>
+<meta charset="utf-8">
 <html>
 <head>
-<script type="text/javascript">
-  
 
-       function creatArray()
-{
-   var arr = [];      
-           for (var i=0, limit=10; i<limit; i++) {
-           arr.push(Math.round(Math.random() * limit))
-           }
-return arr
-  
+<link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:400italic,600italic,700italic,200,300,400,600,700,900">
+<script src="http://d3js.org/d3.v3.min.js"  charset="utf-8"></script>
+<script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="http://d3js.org/topojson.v2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.19/topojson.min.js"></script>
+
+
+<style>
+
+body, h1, h2, h3, p {
+  margin: 0;
+  padding: 0;
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 1em;
+  color: #333;
+  font-weight: 400;
 }
-  
-function mean(numbers) {
-       var final = 0, i;
-       for (i = 0; i < numbers.length; i++) {
-           final += numbers[i];
-       }
-       return final / numbers.length;
-       }
-  
-function median(numbers) {
-       var median = 0, numsLen = numbers.length;
-            numbers.sort();
 
-   if (numsLen%2===0) {
-   median = (numbers[numsLen / 2 - 1] + numbers[numsLen / 2]) / 2;
+#content {
+  margin: 5px;
+  padding: 20px;
+  width: 805px;
+  border: 1px solid #ccc;
 }
-        else {
-           median = numbers[(numsLen - 1) / 2];
-       }
-               return median;
-           }
-function mode(numbers) {
-           var modes = [];
-var count = [], i, number, maxIndex = 0;
 
-            for (i = 0; i < numbers.length; i += 1) {
-           number = numbers[i];
-           count[number] = (count[number] || 0) + 1;
-       if (count[number] > maxIndex) {
-       maxIndex = count[number];
-           }
-           }
-
-       for (i in count)
-       if (count.hasOwnProperty(i)) {
-           if (count[i] === maxIndex) {
-           modes.push(Number(i));
-       }
-       }
-       return modes;
-       }
-  
-array_first = creatArray();
-array_second = creatArray();
-       document.write("First Random Array: "+array_first);
-document.write("<br>");
-       document.write("Second Random Array: "+array_second);
-document.write("<br>");
-       document.write("Mean of First Random Array: "+mean(array_first));
-document.write("<br>");
-       document.write("Mean of Second Random Array: "+mean(array_second));
-  
-document.write("<br>");
-       document.write("Median of First Random Array: "+median(array_first));
-document.write("<br>");
-       document.write("Median of Second Random Array: "+median(array_second));
-  
-document.write("<br>");
-       document.write("Mode of First Random Array: "+mode(array_first));
-document.write("<br>");
-       document.write("Mode of Second Random Array: "+mode(array_second));
-
-window.onload = function () {
-var chart = new CanvasJS.Chart("chartContainer",
-{
-title:{
-text: "Random Data On Scatter Plot"
-},
-
-data: [
-{
-type: "scatter",
-dataPoints: [
-
-{ x: array_first[0], y: array_second[0] },
-{ x: array_first[1], y: array_second[1] },
-{ x: array_first[2], y: array_second[2] },
-{ x: array_first[3], y: array_second[3] },
-{ x: array_first[4], y: array_second[4] },
-{ x: array_first[5], y: array_second[5] },
-  
-{ x: array_first[6], y: array_second[6] },
-{ x: array_first[7], y: array_second[7] },
-{ x: array_first[8], y: array_second[8] },
-{ x: array_first[9], y: array_second[9] }
-]
+#map {
+  margin: 10px 0px 0px 0px;
+  padding: 0px;
 }
-]
+
+h1, h2 {
+  line-height: 1em;
+  font-size: 1.75em;
+  font-weight: 900;
+  color: #000;
+}
+
+h2.year {
+  margin: 10px 0px 0px 0px;
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+p {
+  margin: 10px 0px 0px 0px;
+}
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+}
+
+input {
+  display: block;
+  width: 200px;
+  margin: 10px 0px 0px 0px;
+}
+
+#legend text {
+  font-size: 0.9em;
+  color: #333;
+  font-weight: 400;
+}
+
+.tooltip {
+  position: absolute;
+  padding: 7px;
+  font-size: 0.9em;
+  pointer-events: none;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+
+  -moz-box-shadow:    3px 3px 10px 0px rgba(0, 0, 0, 0.25);
+  -webkit-box-shadow: 3px 3px 10px 0px rgba(0, 0, 0, 0.25);
+  box-shadow:         3px 3px 10px 0px rgba(0, 0, 0, 0.25);
+}
+
+.tooltip p {
+  margin: 0;
+  padding: 0;
+}
+
+.tooltip table {
+  margin: 0;
+  padding: 0;
+  border-collapse: collapse;
+}
+
+.wide {
+  width: 140px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="content">
+  <h1>Minimum Wage from 1968-2017</h1>
+	<h2 class="year"></h2>
+	<div class="slider"></div>
+	<div id="map"></div>
+	<p>Source: U.S Department of Labor.</p>
+</div>
+
+<script>
+// https://flaviocopes.com/how-to-format-number-as-currency-javascript/
+const formatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2
 });
 
-chart.render();
-}
+  var margin = { top: 20, right: 20, bottom: 20, left: 20 };
+      width = 800 - margin.left - margin.right,
+      height = 500 - margin.top - margin.bottom,
+      formatPercent = d3.format(".1%");
+
+  var svg = d3.select("#map").append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+
+  queue()
+      .defer(d3.json, "us.json")
+      .await(ready);
+
+  //var legendText = ["0.00", "", "1.00", "", "2.00", "", "3.00", "", "4.00", "", "5.00", "", "6.00", "", "7.00", "", "9.00", "", "10.00"];
+  var legendText = ["", "0.00", "", "2.00", "", "4.00", "", "6.00", "", "8.00", "", "10.00+"];
+  var legendColors = ["#e6ffe6", "#ccffcc", " #b3ffb3", "#99ff99", "#80ff80", "#66ff66", "#4dff4d", "#33ff33",
+      "#1aff1a", "#00ff00", "#00e600", "#00cc00"];
+
+  function ready(error, us) {
+
+      var states = topojson.feature(us, us.objects.states);
+
+      var data = [];
+      d3.csv("Minimum_Wage_Data.csv", function (d) {
+          for (i = 0; i < d.length; i++) {
+              if (d[i].state == "District of Columbia" || d[i].state == "Federal (FLSA)") {
+                  continue;
+              }
+              data.push({
+                  year: d[i].year,
+                  state: d[i].state,
+                  fips: d[i].fips,
+                  table_data: d[i].table_data,
+                  high_value: d[i].high_value,
+                  low_value: d[i].low_value,
+                  cpi: d[i].cpi,
+                  high_2018: d[i].high_2018,
+                  low_2018: d[i].low_2018
+              });
+          }
+          var dataByStateByYear = d3.nest()
+              .key(function (data) { return data.fips; })
+              .key(function (data) { return data.year; })
+              .map(data);
+      
+          // So we need:
+          // The index of the object (sorted by FIPS)
+          // The Year
+          // The only item in the object, i.e an array
+          // And then the parameter that we need
+          // console.log(dataByStateByYear[41][1972][0].state + " " + dataByStateByYear[41][1972][0].table_data);
+
+          // So somehow we need to get each state's properties and set their years
+          states.features.forEach(function (state) {
+              state.properties.years = dataByStateByYear[+state.id]
+          });
+  
+          //We have a few random undefined datapoints from District of Columbia and Fedral so we just get rid of them
+          states.features.splice(8, 1);
+          states.features.splice(51, 1);
+          var color = d3.scale.threshold()
+              .domain([0.00, 1.00, 2.00, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00])
+              .range(["#e6ffe6", "#ccffcc", " #b3ffb3", "#99ff99", "#80ff80", "#66ff66", "#4dff4d", "#33ff33", "#1aff1a",
+                  "#00ff00", "#00e600", "#00cc00"]);
+          // The following lines draw the US map onto the screen
+          var projection = d3.geo.albersUsa().translate([width / 2, height / 2]);
+
+          var path = d3.geo.path().projection(projection);
+      
+          var year = 1968;
+          var stateShapes = svg.selectAll(".state")
+              .data(states.features)
+              .enter()
+              .append("path")
+              .attr("class", "state")
+              .attr("d", path)
+
+          var tipActive = false;
+          //This version has the click feature
+          stateShapes
+            .on("click", function(d,i){
+              //Logic from http://bl.ocks.org/d3noob/5d621a60e2d1d02086bf
+              tipActive = tipActive ? false : true,
+                  newOpacity = tipActive ? 0 : 1;
+              tooltip.transition().duration(100)
+                  .style("opacity", newOpacity);
+                tooltip.html(
+                  "<p><strong>" + d.properties.years[year][0].state + "</strong></p>" + 
+                  "<table><tbody>" + 
+                  "<tr><td class = 'wide'> Year: </td><td>" + year + "</td></tr>" + 
+                  "<tr><td class = 'wide'> Minimum Wage: </td><td>" + formatter.format(d.properties.years[year][0].table_data) + "</td></tr>" +
+                  "<tr><td class = 'wide'> CPI: </td><td>" + d.properties.years[year][0].cpi + "</td></tr>" +
+                  "<tr><td class = 'wide'> Amount Earned per Week: </td><td>" + formatter.format(d.properties.years[year][0].table_data * 40) + "</td></tr>" +
+                  "<tr><td class = 'wide'> Amount Earned per Year: </td><td>" + formatter.format(d.properties.years[year][0].table_data * 40 * 52)+ "</td></tr>"
+                )
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(){
+              tooltip.transition().duration(250).style("opacity", 0);
+            });
+
+          svg.append("path")
+              .datum(topojson.feature(us, us.objects.states, function (a, b) { return a !== b; }))
+              .attr("class", "states")
+              .attr("d", path);
+
+          var legend = svg.append("g")
+              .attr("id", "legend");
+
+          var legenditem = legend.selectAll(".legenditem")
+              .data(d3.range(13))
+              .enter()
+              .append("g")
+              .attr("class", "legenditem")
+              .attr("transform", function (d, i) { return "translate(" + i * 31 + ",0)"; });
+              
+          legenditem.append("text")
+              .attr("x", width - 350)
+              .attr("y", -10)
+              .style("text-anchor", "middle")
+              .text(function (d, i) { return legendText[i]; });
+
+          legenditem.append("rect")
+              .attr("x", width - 350)
+              .attr("y", -7)
+              .attr("width", 100)
+              .attr("height", 6)
+              .attr("class", "rect")
+              .style("fill", function (d, i) { return legendColors[i]; });
+
+          function update(year) {
+              slider.property("value", year);
+              d3.select(".year").text(year);
+              stateShapes.style("fill", function (d) {
+                  for (i = 0; i < d.length; i++) {
+                      if (d.properties.year[year][0] == null)
+                          continue;
+                  }
+                  return color(Math.floor(d.properties.years[year][0].table_data))
+              });
+          }
+
+          var slider = d3.select(".slider")
+              .append("input")
+              .attr("type", "range")
+              .attr("min", 1968)
+              .attr("max", 2017)
+              .attr("step", 1)
+              .on("input", function () {
+                  year = this.value;
+                  update(year);
+              });
+          update(1968);
+
+      });
+    }
+
+  d3.select(self.frameElement).style("height", "685px");
+
 </script>
-<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
-</head>
-<body>
-<div id="chartContainer" style="height: 300px; width: 100%;">
-</div>
+
 </body>
 </html>
